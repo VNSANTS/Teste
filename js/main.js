@@ -20,19 +20,7 @@ import { profilePage } from './features/profile/profile.js';
 import { settingsPage } from './features/settings/settings.js';
 import { notFoundPage } from './features/notFound.js';
 
-const NAV_ICONS = { home: icons.home, bible: icons.bible, audio: icons.audio, prayer: icons.prayer, profile: icons.profile };
-
-function initClock() {
-  const clockEl = qs('#clock');
-  function update() {
-    const now = new Date();
-    const h = now.getHours();
-    const m = now.getMinutes();
-    clockEl.textContent = `${h}:${m < 10 ? '0' : ''}${m}`;
-  }
-  update();
-  setInterval(update, 60000);
-}
+const NAV_ICONS = { home: icons.home, bible: icons.bibleNav, audio: icons.audio, prayer: icons.prayer, profile: icons.profile };
 
 function initSplashScreen() {
   setTimeout(() => {
@@ -109,7 +97,6 @@ function initRoutes() {
 
 function init() {
   bindHeaderTitleElement(qs('#headerTitle'));
-  initClock();
   initSplashScreen();
   initBottomNavIcons();
   initRoutes();

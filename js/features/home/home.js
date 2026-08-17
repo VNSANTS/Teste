@@ -1,11 +1,14 @@
 // Página Home: versículo do dia, sequência, acesso rápido e planos de leitura.
-import { qs, qsa } from '../../utils/dom.js';
+import { qs, qsa, el } from '../../utils/dom.js';
 import { icons } from '../../components/icons.js';
 import { toast } from '../../utils/toast.js';
 import { getItem, setItem, STORAGE_KEYS } from '../../utils/storage.js';
 import { speak, stopSpeech } from '../../utils/speech.js';
 import { navigateTo } from '../../router.js';
 import { DAILY_VERSES } from '../../../data/verses.js';
+import { progressRepository } from '../../data-access/progressRepository.js';
+import { getBook } from '../../data-access/bibleRepository.js';
+import { requestAutoStart } from '../bible/reader.js';
 
 let verseIndex = 0;
 let isSpeakingVerse = false;
@@ -41,8 +44,10 @@ function template() {
       <div class="hero-overlay"></div>
     </div>
 
+    <div id="continueReadingSlot"></div>
+
     <div class="streak-banner">
-      <div class="streak-flame">${icons.flame}</div>
+      <div class="streak-flame">${icons.bible}</div>
       <div class="streak-info">
         <h4>Sequência de 7 dias</h4>
         <p>Continue lendo para manter sua sequência</p>
@@ -182,6 +187,57 @@ function toggleVerseAudio(container) {
   });
 }
 
+/**
+ * Se houver progresso de leitura salvo (fora do estado inicial), mostra um
+ * card "Continue de onde parou" na Home com opções de continuar a
+ * narrativa exatamente do versículo pausado ou recomeçar o capítulo do
+ * início. Carregado à parte (sem bloquear o resto da Home) porque exige
+ * buscar o nome do livro nos dados da Bíblia.
+ */
+async function renderContinueReadingCard(container) {
+  const slot = qs('#continueReadingSlot', container);
+  if (!slot) return;
+
+  const progress = await progressRepository.getProgress();
+  const hasProgress = !(progress.book === 0 && progress.chapter === 0 && progress.verse === 0);
+  if (!hasProgress) return;
+
+  let book;
+  try {
+    book = await getBook(progress.book);
+  } catch (_e) {
+    return; // dados indisponíveis — não quebra a Home por causa disso
+  }
+  // A Home pode ter sido trocada por outra tela enquanto isso carregava.
+  if (!document.body.contains(slot)) return;
+
+  const subtitle =
+    progress.verse > 0
+      ? `${book.name}, capítulo ${progress.chapter + 1} — narração pausada no versículo ${progress.verse + 1}`
+      : `${book.name}, capítulo ${progress.chapter + 1}`;
+
+  const card = el('div', { className: 'continue-reading-card' }, [
+    el('div', { className: 'continue-reading-info' }, [
+      el('h4', {}, 'Continue de onde parou'),
+      el('p', {}, subtitle),
+    ]),
+    el('div', { className: 'continue-reading-actions' }, [
+      el('button', { className: 'read-btn read-btn--primary', id: 'btnContinueReading' }, '▶ Continuar leitura'),
+      el('button', { className: 'read-btn', id: 'btnRestartReading' }, '↺ Começar do início'),
+    ]),
+  ]);
+  slot.appendChild(card);
+
+  qs('#btnContinueReading', card).addEventListener('click', () => {
+    if (progress.verse > 0) requestAutoStart(progress.verse);
+    navigateTo(`/biblia/${progress.book}/${progress.chapter}`);
+  });
+  qs('#btnRestartReading', card).addEventListener('click', () => {
+    progressRepository.saveProgress({ book: progress.book, chapter: progress.chapter, verse: 0 });
+    navigateTo(`/biblia/${progress.book}/${progress.chapter}`);
+  });
+}
+
 export const homePage = {
   render(container) {
     container.innerHTML = template();
@@ -207,6 +263,7 @@ export const homePage = {
     });
 
     updateVerseDisplay(container);
+    renderContinueReadingCard(container);
 
     // Cleanup: para a leitura do versículo do dia ao sair da Home.
     return () => {

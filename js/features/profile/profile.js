@@ -43,7 +43,7 @@ function template() {
 
   return `
     <div class="streak-banner">
-      <div class="streak-flame">${icons.flame}</div>
+      <div class="streak-flame">${icons.bible}</div>
       <div class="streak-info">
         <h4>Sequência de leitura de 7 dias</h4>
         <p>Melhor: 14 dias</p>

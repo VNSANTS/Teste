@@ -1,9 +1,10 @@
 // Ícones SVG (inline, sem dependência externa) reutilizados pelos componentes.
 // Todos seguem o padrão stroke=currentColor / viewBox 0 0 24 24, salvo indicação.
-// Exceção: "bible" e "badgeFull" usam uma imagem (assets/icons/bible-icon.png)
-// em vez de um SVG desenhado — a classe "icon-glyph" (css/base.css e
-// css/components.css) faz essa imagem se comportar como os demais ícones
-// (mesmo tamanho e alinhamento nos mesmos contêineres).
+// Exceção: "bible" usa uma imagem real (assets/icons/bible-icon.png, enviada
+// pelo usuário) nos contêineres grandes/circulares (banner de sequência,
+// atalho "Ler Bíblia", insígnia). Em contêineres pequenos como o ícone do
+// menu inferior, a imagem perde detalhe — "bibleNav" mantém o desenho SVG
+// simples (livro com cruz) nesse caso específico.
 
 const wrap = (inner, extra = '') =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${extra}>${inner}</svg>`;
@@ -13,6 +14,7 @@ const bibleImg = '<img src="assets/icons/bible-icon.png" alt="Bíblia" class="ic
 export const icons = {
   home: wrap('<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>'),
   bible: bibleImg,
+  bibleNav: wrap('<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/><path d="M12.5 6v7M9 9.5h7"/>'),
   audio: wrap('<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>'),
   prayer: wrap('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'),
   quiz: wrap('<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>'),

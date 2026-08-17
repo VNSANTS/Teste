@@ -85,21 +85,8 @@ svg {
   transition: background 0.4s ease;
 }
 
-.status-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 24px 4px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-.status-bar .time { letter-spacing: 0.02em; }
-.status-icons { display: flex; gap: 6px; align-items: center; }
-.status-icons svg { width: 16px; height: 16px; }
-
 .app-header {
-  padding: 12px 20px 8px;
+  padding: 22px 20px 8px;
   display: flex;
   align-items: center;
   justify-content: space-between;

@@ -1,5 +1,16 @@
 // Tela: leitura de um capítulo — texto, seleção de versículo, controles de
-// fonte e leitura em voz alta (TTS) com destaque do versículo atual.
+// fonte e narrativa em voz alta (TTS) com destaque do versículo atual.
+//
+// Sistema de narrativa (pausar/continuar/parar):
+// A Web Speech API tem pause()/resume() nativos, mas eles são conhecidos
+// por serem pouco confiáveis entre navegadores (especialmente Chrome no
+// Android, onde a fala pode travar de vez após um pause()). Por isso, em
+// vez de usar pause()/resume() nativos, a narrativa é lida um versículo
+// por vez (já era assim) e "pausar" simplesmente para a fala atual sem
+// avançar o índice do versículo — "continuar" retoma a partir do mesmo
+// versículo em que parou. É uma granularidade de versículo, não de
+// palavra exata, mas é 100% confiável em qualquer navegador, o que importa
+// mais do que a precisão de retomar no meio exato de uma frase.
 import { qs, el } from '../../utils/dom.js';
 import { icons } from '../../components/icons.js';
 import { toast } from '../../utils/toast.js';
@@ -10,12 +21,25 @@ import { getItem, setItem, STORAGE_KEYS } from '../../utils/storage.js';
 import { speak, stopSpeech, isSpeechSupported } from '../../utils/speech.js';
 import { setHeaderTitle } from '../../state/header.js';
 import { attachSelectionToolbar } from './selectionToolbar.js';
+import { showVerseExplanation } from './verseExplanation.js';
+import { openExternalExplanation } from '../../utils/externalExplain.js';
 
 const DEFAULT_SETTINGS = { fontSize: 18, lineHeight: 1.8 };
 const MIN_FONT = 12;
 const MAX_FONT = 32;
 const MIN_LINE = 1.2;
 const MAX_LINE = 2.5;
+const VERSE_PAUSE_MS = 450; // pausa natural entre versículos
+
+// Sinaliza para a PRÓXIMA renderização do leitor que ela deve iniciar a
+// narrativa automaticamente (usado no avanço automático de capítulo e em
+// "Continuar leitura" a partir da Home). Módulo é singleton, então esse
+// valor sobrevive à troca de rota; cada render() consome e limpa o valor.
+let pendingAutoStart = null; // { verse: number } | null
+
+export function requestAutoStart(verseIndex = 0) {
+  pendingAutoStart = { verse: verseIndex };
+}
 
 function loadReaderSettings() {
   const saved = getItem(STORAGE_KEYS.settings, {});
@@ -31,8 +55,8 @@ function template() {
     <div class="read-header">
       <div class="read-subtitle" id="readSubtitle"></div>
       <div class="read-toolbar">
-        <button class="tool-btn" id="btnListen" title="Ouvir capítulo">${icons.listen}<span>Ouvir</span></button>
-        <button class="tool-btn" id="btnStop" title="Parar leitura">${icons.stop}<span>Parar</span></button>
+        <button class="tool-btn" id="btnPlayPause" title="Iniciar leitura">${icons.listen}<span id="btnPlayPauseLabel">Iniciar</span></button>
+        <button class="tool-btn" id="btnStop" title="Parar leitura" disabled>${icons.stop}<span>Parar</span></button>
         <button class="tool-btn" id="btnFontMinus" aria-label="Diminuir fonte">A-</button>
         <button class="tool-btn" id="btnFontPlus" aria-label="Aumentar fonte">A+</button>
         <button class="tool-btn" id="btnLineMinus" aria-label="Diminuir espaçamento">⇕-</button>
@@ -78,16 +102,28 @@ export const readerPage = {
       p.style.fontSize = settings.fontSize + 'px';
       p.style.lineHeight = String(settings.lineHeight);
       p.addEventListener('click', () => {
-        // Evita conflitar com uma seleção de texto (arrastar para selecionar
-        // um trecho): só alterna o destaque do versículo se não há seleção.
+        // Evita conflitar com uma seleção de texto (arrastar para
+        // selecionar um trecho): só abre a explicação se não há seleção.
         if (window.getSelection().toString().length > 0) return;
         verseEls.forEach((v, i) => v.classList.toggle('selected', i === idx));
+        showVerseExplanation({ bookIndex, bookName: book.name, chapterIndex, verseIndex: idx, verseText: text });
       });
       readContent.appendChild(p);
       verseEls.push(p);
     });
 
-    progressRepository.saveProgress({ book: bookIndex, chapter: chapterIndex });
+    // Progresso salvo para ESTE capítulo específico: se existir um
+    // versículo em andamento, o botão nasce oferecendo "Continuar" a
+    // partir dali em vez de "Iniciar" do zero.
+    const savedProgress = await progressRepository.getProgress();
+    const hasResumableProgress =
+      savedProgress.book === bookIndex && savedProgress.chapter === chapterIndex && savedProgress.verse > 0;
+
+    progressRepository.saveProgress({
+      book: bookIndex,
+      chapter: chapterIndex,
+      verse: hasResumableProgress ? savedProgress.verse : 0,
+    });
 
     // Navegação entre capítulos
     const prevBtn = qs('#btnPrevChapter', container);
@@ -127,66 +163,158 @@ export const readerPage = {
       applySettings();
     });
 
-    // Leitura em voz alta do capítulo inteiro, com destaque do versículo atual
-    const listenBtn = qs('#btnListen', container);
+    // ---- Narrativa: iniciar / pausar / continuar / parar -----------------
+    const playPauseBtn = qs('#btnPlayPause', container);
     const stopBtn = qs('#btnStop', container);
-    let readingIndex = 0;
-    let isReading = false;
+
+    let readingState = 'idle'; // 'idle' | 'playing' | 'paused'
+    let readingIndex = hasResumableProgress ? savedProgress.verse : 0;
 
     if (!isSpeechSupported()) {
-      listenBtn.disabled = true;
-      stopBtn.disabled = true;
+      playPauseBtn.disabled = true;
+      playPauseBtn.title = 'Leitura por voz não é suportada neste navegador';
+      toast.info('Este navegador não suporta leitura por voz.');
     }
 
-    function highlight(idx) {
+    function updateControlsUI() {
+      stopBtn.disabled = readingState === 'idle';
+      playPauseBtn.classList.toggle('active-audio', readingState === 'playing');
+      if (readingState === 'playing') {
+        playPauseBtn.innerHTML = `${icons.pause}<span id="btnPlayPauseLabel">Pausar</span>`;
+        playPauseBtn.title = 'Pausar leitura';
+      } else if (readingState === 'paused') {
+        playPauseBtn.innerHTML = `${icons.listen}<span id="btnPlayPauseLabel">Continuar</span>`;
+        playPauseBtn.title = 'Continuar leitura';
+      } else {
+        const label = readingIndex > 0 ? 'Continuar' : 'Iniciar';
+        playPauseBtn.innerHTML = `${icons.listen}<span id="btnPlayPauseLabel">${label}</span>`;
+        playPauseBtn.title = readingIndex > 0 ? 'Continuar leitura' : 'Iniciar leitura';
+      }
+    }
+
+    function clearHighlights() {
+      verseEls.forEach((v) => v.classList.remove('reading'));
+    }
+
+    function highlightVerse(idx) {
       verseEls.forEach((v, i) => v.classList.toggle('reading', i === idx));
       if (verseEls[idx]) verseEls[idx].scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
-    function readNext() {
-      if (!isReading) return;
+    function persistVerseProgress() {
+      progressRepository.saveProgress({ book: bookIndex, chapter: chapterIndex, verse: readingIndex });
+    }
+
+    function readLoop() {
+      if (readingState !== 'playing') return;
       if (readingIndex >= verses.length) {
-        stopReading();
-        toast.info('Leitura concluída');
+        onChapterFinished();
         return;
       }
-      highlight(readingIndex);
+      highlightVerse(readingIndex);
       const text = `Versículo ${readingIndex + 1}. ${verses[readingIndex]}`;
       speak(text, {
         onEnd: () => {
+          if (readingState !== 'playing') return; // foi pausado/parado durante a fala
           readingIndex++;
-          setTimeout(readNext, 300);
+          persistVerseProgress();
+          setTimeout(readLoop, VERSE_PAUSE_MS);
         },
-        onError: () => stopReading(),
+        onError: () => {
+          if (readingState !== 'playing') return;
+          toast.error('A leitura em voz alta foi interrompida.');
+          stopReading();
+        },
       });
     }
 
-    function startReading() {
-      isReading = true;
+    function onChapterFinished() {
+      readingState = 'idle';
       readingIndex = 0;
-      listenBtn.classList.add('active-audio');
-      toast.info('Iniciando leitura...');
-      readNext();
+      clearHighlights();
+      updateControlsUI();
+      progressRepository.saveProgress({ book: bookIndex, chapter: chapterIndex, verse: 0 });
+
+      const hasNextChapter = chapterIndex < book.chapterCount - 1;
+      if (!hasNextChapter) {
+        toast.success('Você concluiu o último capítulo deste livro.');
+        speak('Você concluiu o último capítulo deste livro.', {});
+        return;
+      }
+
+      const nextChapterHuman = chapterIndex + 2; // próximo capítulo, 1-based
+      toast.info(`Avançando para ${book.name} capítulo ${nextChapterHuman}...`);
+      const announcement = `Você concluiu ${book.name} capítulo ${chapterIndex + 1}. Agora vamos continuar com ${book.name} capítulo ${nextChapterHuman}.`;
+      requestAutoStart(0);
+      const goToNext = () => navigateTo(`/biblia/${bookIndex}/${chapterIndex + 1}`);
+      speak(announcement, { onEnd: goToNext, onError: goToNext });
+    }
+
+    /** Início "novo" (não retomando uma pausa da mesma sessão): sempre
+     * anuncia o livro e capítulo antes de começar a ler os versículos,
+     * conforme pedido — vale tanto para o primeiro play quanto para
+     * retomar uma leitura salva de uma sessão anterior. */
+    function startFresh(fromVerse) {
+      readingState = 'playing';
+      readingIndex = fromVerse;
+      updateControlsUI();
+      const announcement = `Vamos iniciar a leitura de ${book.name}, capítulo ${chapterIndex + 1}.`;
+      speak(announcement, {
+        onEnd: () => setTimeout(readLoop, 250),
+        onError: () => setTimeout(readLoop, 250),
+      });
+    }
+
+    function pauseReading() {
+      if (readingState !== 'playing') return;
+      stopSpeech();
+      readingState = 'paused';
+      updateControlsUI();
+      persistVerseProgress();
+      toast.info('Leitura pausada');
+    }
+
+    /** Continuar dentro da MESMA sessão (após pausa) — não reanuncia o
+     * capítulo, retoma direto no versículo em que parou. */
+    function continueReading() {
+      if (readingState !== 'paused') return;
+      readingState = 'playing';
+      updateControlsUI();
+      readLoop();
     }
 
     function stopReading() {
-      isReading = false;
       stopSpeech();
-      listenBtn.classList.remove('active-audio');
-      verseEls.forEach((v) => v.classList.remove('reading'));
+      readingState = 'idle';
+      readingIndex = 0;
+      clearHighlights();
+      updateControlsUI();
+      progressRepository.saveProgress({ book: bookIndex, chapter: chapterIndex, verse: 0 });
     }
 
-    listenBtn.addEventListener('click', () => {
-      if (isReading) {
-        stopReading();
+    playPauseBtn.addEventListener('click', () => {
+      if (readingState === 'idle') {
+        startFresh(readingIndex); // readingIndex já é 0 ou o versículo salvo
+      } else if (readingState === 'playing') {
+        pauseReading();
       } else {
-        startReading();
+        continueReading();
       }
     });
     stopBtn.addEventListener('click', () => {
       stopReading();
       toast.info('Leitura parada');
     });
+
+    updateControlsUI();
+
+    // Avanço automático (chegou aqui vindo do fim do capítulo anterior) ou
+    // "Continuar leitura" disparado a partir da Home.
+    if (pendingAutoStart) {
+      const fromVerse = pendingAutoStart.verse;
+      pendingAutoStart = null;
+      if (isSpeechSupported()) startFresh(fromVerse);
+    }
 
     // Seleção de texto: compartilhar / explicar / narrar o trecho selecionado
     async function handleShareSelection(text) {
@@ -208,13 +336,14 @@ export const readerPage = {
     }
 
     function handleExplainSelection(text) {
-      const query = encodeURIComponent(`"${text}" significado bíblico explicação`);
-      window.open(`https://www.google.com/search?q=${query}`, '_blank', 'noopener,noreferrer');
+      openExternalExplanation(text);
       toast.info('Abrindo explicação em uma nova aba...');
     }
 
     function handleNarrateSelection(text) {
-      stopReading();
+      // Não interrompe a narrativa do capítulo por engano: se estava
+      // tocando, pausa (preservando o ponto) em vez de simplesmente cortar.
+      if (readingState === 'playing') pauseReading();
       toast.info('Lendo trecho selecionado...');
       speak(text, { onError: () => toast.error('Não foi possível ler o trecho') });
     }
@@ -228,7 +357,7 @@ export const readerPage = {
     // Cleanup: para a leitura em voz alta e remove os listeners de seleção
     // de texto ao sair da tela.
     return () => {
-      stopReading();
+      stopSpeech();
       detachSelectionToolbar();
     };
   },

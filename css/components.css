@@ -115,6 +115,7 @@
   flex-shrink: 0;
 }
 .streak-flame svg { width: 22px; height: 22px; color: var(--navy-deep); }
+.streak-flame .icon-glyph { width: 30px; height: 30px; }
 .streak-info h4 { font-size: 15px; font-weight: 600; margin: 0 0 2px; color: var(--text-primary); }
 .streak-info p { font-size: 12px; color: var(--text-tertiary); margin: 0; }
 
@@ -544,6 +545,25 @@
 }
 .read-btn:hover:not(:disabled) { background: var(--navy-lighter); color: var(--gold); }
 .read-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.read-btn--primary {
+  background: linear-gradient(135deg, var(--gold), #b8944a);
+  color: var(--navy-deep);
+  border: none;
+}
+.read-btn--primary:hover { background: linear-gradient(135deg, var(--gold-light), var(--gold)); color: var(--navy-deep); }
+
+/* --- Card "Continue de onde parou" (Home) --- */
+.continue-reading-card {
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, var(--gold-soft), var(--gold-glow));
+  border: 1px solid rgba(201,169,110,0.25);
+}
+.continue-reading-info h4 { font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0 0 4px; }
+.continue-reading-info p { font-size: 12px; color: var(--text-secondary); margin: 0 0 12px; line-height: 1.5; }
+.continue-reading-actions { display: flex; gap: 8px; }
+.continue-reading-actions .read-btn { padding: 10px; font-size: 12px; }
 
 /* --- Busca --- */
 .search-box { padding: 4px 0 16px; }
@@ -660,6 +680,22 @@
 }
 .select-input:focus { border-color: var(--gold); }
 
+.gender-toggle { display: flex; gap: 8px; margin-bottom: 4px; }
+.gender-toggle button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--navy);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+.gender-toggle button.active { background: var(--gold-soft); color: var(--gold); border-color: var(--gold); }
+
 .settings-actions { display: flex; gap: 10px; margin: 4px 0 18px; }
 .settings-actions .tool-btn { flex: 1; justify-content: center; padding: 12px; }
 
@@ -697,6 +733,108 @@
 }
 .selection-toolbar button:hover { background: var(--navy-light); color: var(--gold); }
 .selection-toolbar button svg { width: 18px; height: 18px; }
+
+/* --- Painel de explicação de versículo --- */
+.verse-explain-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 180;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+.verse-explain-panel {
+  width: 100%;
+  max-width: 400px;
+  max-height: 82vh;
+  overflow-y: auto;
+  background: var(--navy);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 20px 20px 0 0;
+  padding: 20px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+  position: relative;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+}
+.verse-explain-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  margin: 0 auto 14px;
+}
+.verse-explain-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--navy-light);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.verse-explain-close:hover { color: var(--gold); border-color: var(--gold); }
+.verse-explain-ref {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+  padding-right: 40px;
+}
+.verse-explain-text {
+  font-family: var(--font-display);
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  border-left: 3px solid var(--gold);
+  padding-left: 14px;
+  margin: 0 0 20px;
+}
+.verse-explain-section { margin-bottom: 18px; }
+.verse-explain-section h4 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.verse-explain-section p {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  margin: 0;
+}
+.verse-explain-fallback {
+  text-align: center;
+  padding: 20px 8px 8px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.verse-explain-fallback button {
+  margin-top: 14px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: 1px solid var(--gold);
+  background: var(--gold-soft);
+  color: var(--gold);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
 .tts-status {
   position: fixed;
   bottom: 80px;

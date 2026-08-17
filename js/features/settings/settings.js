@@ -1,9 +1,18 @@
 // Tela: Configurações — tom de voz, velocidade de leitura e escolha da voz
 // usados em toda leitura por voz do app (versículo do dia, capítulos,
-// trechos selecionados e o player de "Bíblia em Áudio").
-import { qs } from '../../utils/dom.js';
+// narrativa de capítulos, trechos selecionados e o player de "Bíblia em
+// Áudio").
+import { qs, qsa } from '../../utils/dom.js';
 import { toast } from '../../utils/toast.js';
-import { speak, stopSpeech, getAvailableVoices, onVoicesChanged, isSpeechSupported } from '../../utils/speech.js';
+import {
+  speak,
+  stopSpeech,
+  getAvailableVoices,
+  onVoicesChanged,
+  isSpeechSupported,
+  guessVoiceGender,
+  findVoiceByGender,
+} from '../../utils/speech.js';
 import { getVoiceSettings, setVoiceSettings, resetVoiceSettings, DEFAULT_VOICE_SETTINGS } from '../../state/voiceSettings.js';
 
 const SAMPLE_TEXT = 'O Senhor é o meu pastor; nada me faltará.';
@@ -20,21 +29,46 @@ function rateLabel(v) {
   return 'Normal';
 }
 
+function genderSuffix(voice) {
+  const gender = guessVoiceGender(voice);
+  if (gender === 'male') return ' — masculina';
+  if (gender === 'female') return ' — feminina';
+  return '';
+}
+
 function voiceOptionsHtml(voices, selectedURI) {
   const autoSelected = !selectedURI ? 'selected' : '';
-  let html = `<option value="" ${autoSelected}>Automática (recomendada)</option>`;
+  let html = `<option value="" ${autoSelected}>Automática (masculina, pt-BR quando disponível)</option>`;
   voices.forEach((v) => {
     const sel = v.voiceURI === selectedURI ? 'selected' : '';
-    html += `<option value="${v.voiceURI}" ${sel}>${v.name} (${v.lang})</option>`;
+    html += `<option value="${v.voiceURI}" ${sel}>${v.name} (${v.lang})${genderSuffix(v)}</option>`;
   });
   return html;
 }
 
+/** Determina qual botão do seletor rápido (Masculina/Feminina/Automática)
+ * deve aparecer marcado como ativo, a partir da voz selecionada agora. */
+function currentGenderPreference(settings) {
+  if (!settings.voiceURI) return 'auto';
+  const voice = getAvailableVoices().find((v) => v.voiceURI === settings.voiceURI);
+  return guessVoiceGender(voice) === 'female' ? 'female' : guessVoiceGender(voice) === 'male' ? 'male' : 'auto';
+}
+
 function template(settings) {
+  const pref = currentGenderPreference(settings);
   return `
     <div class="settings-section">
       <div class="settings-section-title">Voz e Leitura</div>
       <div class="settings-card">
+
+        <div class="setting-row">
+          <div class="setting-row-header"><span class="setting-label">Voz da narrativa</span></div>
+          <div class="gender-toggle" id="genderToggle">
+            <button type="button" data-gender="male" class="${pref === 'male' ? 'active' : ''}">Masculina</button>
+            <button type="button" data-gender="female" class="${pref === 'female' ? 'active' : ''}">Feminina</button>
+            <button type="button" data-gender="auto" class="${pref === 'auto' ? 'active' : ''}">Automática</button>
+          </div>
+        </div>
 
         <div class="setting-row">
           <div class="setting-row-header">
@@ -55,8 +89,11 @@ function template(settings) {
         </div>
 
         <div class="setting-row">
-          <div class="setting-row-header"><span class="setting-label">Voz</span></div>
+          <div class="setting-row-header"><span class="setting-label">Voz específica</span></div>
           <select class="select-input" id="voiceSelect">${voiceOptionsHtml(getAvailableVoices(), settings.voiceURI)}</select>
+          <div class="setting-scale" style="justify-content:flex-start;">
+            <span>As vozes disponíveis dependem do seu aparelho e navegador.</span>
+          </div>
         </div>
 
       </div>
@@ -89,6 +126,36 @@ export const settingsPage = {
     const voiceSelect = qs('#voiceSelect', container);
     const pitchValue = qs('#pitchValue', container);
     const rateValue = qs('#rateValue', container);
+    const genderToggle = qs('#genderToggle', container);
+
+    function setActiveGenderButton(pref) {
+      qsa('button', genderToggle).forEach((btn) => btn.classList.toggle('active', btn.dataset.gender === pref));
+    }
+
+    genderToggle.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-gender]');
+      if (!btn) return;
+      const pref = btn.dataset.gender;
+
+      if (pref === 'auto') {
+        setVoiceSettings({ voiceURI: null });
+        voiceSelect.value = '';
+        setActiveGenderButton('auto');
+        return;
+      }
+
+      const voice = findVoiceByGender(pref);
+      if (!voice) {
+        toast.info(`Nenhuma voz ${pref === 'male' ? 'masculina' : 'feminina'} encontrada neste aparelho — usando a melhor voz em português disponível.`);
+        setVoiceSettings({ voiceURI: null });
+        voiceSelect.value = '';
+        setActiveGenderButton('auto');
+        return;
+      }
+      setVoiceSettings({ voiceURI: voice.voiceURI });
+      voiceSelect.value = voice.voiceURI;
+      setActiveGenderButton(pref);
+    });
 
     pitchSlider.addEventListener('input', () => {
       const pitch = Number(pitchSlider.value);
@@ -103,7 +170,11 @@ export const settingsPage = {
     });
 
     voiceSelect.addEventListener('change', () => {
-      setVoiceSettings({ voiceURI: voiceSelect.value || null });
+      const voiceURI = voiceSelect.value || null;
+      setVoiceSettings({ voiceURI });
+      const voice = getAvailableVoices().find((v) => v.voiceURI === voiceURI);
+      const gender = voiceURI ? guessVoiceGender(voice) : 'auto';
+      setActiveGenderButton(gender === 'unknown' ? 'auto' : gender);
     });
 
     // A lista de vozes do navegador pode carregar de forma assíncrona.
@@ -127,6 +198,7 @@ export const settingsPage = {
       pitchValue.textContent = pitchLabel(settings.pitch);
       rateValue.textContent = rateLabel(settings.rate);
       voiceSelect.innerHTML = voiceOptionsHtml(getAvailableVoices(), null);
+      setActiveGenderButton('auto');
       toast.success('Configurações de voz restauradas');
     });
 

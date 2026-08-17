@@ -16,17 +16,42 @@ let currentUtterance = null;
 let watchdogTimer = null;
 const voicesListeners = new Set();
 
+// A Web Speech API não expõe o gênero da voz — só dá pra estimar pelo nome.
+// Cobre os nomes de voz em português mais comuns no Windows/Edge, macOS/iOS
+// e Android/Chrome.
+const MALE_NAME_HINTS = ['daniel', 'duarte', 'felipe', 'ricardo', 'diego', 'diogo', 'bruno', 'rodrigo', 'antonio', 'antónio', 'joaquim', 'paulo', 'pedro', 'carlos', 'jorge', 'miguel', 'tiago', 'thiago', 'masculin', 'male'];
+const FEMALE_NAME_HINTS = ['maria', 'luciana', 'camila', 'fernanda', 'joana', 'ines', 'inês', 'raquel', 'helia', 'hélia', 'catarina', 'feminin', 'female'];
+
+/** Estima o gênero de uma voz pelo nome (heurística, sem garantia). */
+export function guessVoiceGender(voice) {
+  if (!voice || !voice.name) return 'unknown';
+  const name = voice.name.toLowerCase();
+  if (MALE_NAME_HINTS.some((hint) => name.includes(hint))) return 'male';
+  if (FEMALE_NAME_HINTS.some((hint) => name.includes(hint))) return 'female';
+  return 'unknown';
+}
+
 function pickVoice() {
   if (!synth) return;
   const voices = synth.getVoices();
   if (voices.length === 0) return;
   allVoices = voices;
+
+  const isPtBR = (v) => v.lang && v.lang.toLowerCase() === 'pt-br';
+  const isPt = (v) => v.lang && v.lang.toLowerCase().startsWith('pt');
+  const isMale = (v) => guessVoiceGender(v) === 'male';
+
+  // Preferência por padrão: voz masculina em português do Brasil. Se o
+  // dispositivo não tiver nenhuma, cai para a melhor opção em português
+  // disponível. O usuário pode sempre escolher manualmente em Configurações.
   ptVoice =
-    voices.find((v) => v.lang === 'pt-BR') ||
-    voices.find((v) => v.lang && v.lang.toLowerCase() === 'pt-br') ||
-    voices.find((v) => v.lang && v.lang.startsWith('pt')) ||
+    voices.find((v) => isPtBR(v) && isMale(v)) ||
+    voices.find((v) => isPtBR(v)) ||
+    voices.find((v) => isPt(v) && isMale(v)) ||
+    voices.find((v) => isPt(v)) ||
     voices.find((v) => v.name && v.name.toLowerCase().includes('portugu')) ||
     voices[0];
+
   voicesListeners.forEach((fn) => fn(getAvailableVoices()));
 }
 
@@ -43,13 +68,20 @@ export function isSpeechSupported() {
 }
 
 /**
- * Lista de vozes disponíveis no navegador, priorizando português.
- * Usado pela tela de Configurações para montar o seletor de voz.
+ * Lista de vozes disponíveis no navegador, priorizando português do Brasil
+ * e, dentro dele, vozes masculinas primeiro (mesma preferência usada na
+ * escolha automática). Usado pela tela de Configurações para montar o
+ * seletor de voz.
  */
 export function getAvailableVoices() {
-  const pt = allVoices.filter((v) => v.lang && v.lang.toLowerCase().startsWith('pt'));
-  const others = allVoices.filter((v) => !v.lang || !v.lang.toLowerCase().startsWith('pt'));
-  return [...pt, ...others];
+  const rank = (v) => {
+    const lang = (v.lang || '').toLowerCase();
+    const male = guessVoiceGender(v) === 'male';
+    if (lang === 'pt-br') return male ? 0 : 1;
+    if (lang.startsWith('pt')) return male ? 2 : 3;
+    return 4;
+  };
+  return [...allVoices].sort((a, b) => rank(a) - rank(b));
 }
 
 /** Chama `fn` sempre que a lista de vozes do navegador for (re)carregada. */
@@ -61,6 +93,24 @@ export function onVoicesChanged(fn) {
 function resolveVoice(voiceURI) {
   if (!voiceURI) return ptVoice;
   return allVoices.find((v) => v.voiceURI === voiceURI) || ptVoice;
+}
+
+/**
+ * Procura uma voz específica que combine com a preferência de gênero
+ * informada ('male' | 'female'), priorizando português do Brasil. Usado
+ * pelo seletor rápido "Masculina / Feminina / Automática" em Configurações.
+ * Retorna null se nenhuma voz correspondente existir neste navegador.
+ */
+export function findVoiceByGender(genderPreference) {
+  const isPtBR = (v) => v.lang && v.lang.toLowerCase() === 'pt-br';
+  const isPt = (v) => v.lang && v.lang.toLowerCase().startsWith('pt');
+  const matches = (v) => guessVoiceGender(v) === genderPreference;
+  return (
+    allVoices.find((v) => isPtBR(v) && matches(v)) ||
+    allVoices.find((v) => isPt(v) && matches(v)) ||
+    allVoices.find((v) => matches(v)) ||
+    null
+  );
 }
 
 /**
