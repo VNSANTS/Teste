@@ -1,13 +1,19 @@
 # 📖 Bíblia de Estudo
 
-Aplicativo web de estudo bíblico: Bíblia completa (ACF, 66 livros), busca por
-palavra, Bíblia em áudio, orações guiadas e quiz bíblico. Interface em
-português, tema claro/escuro, 100% client-side (sem backend).
+Aplicativo web de estudo bíblico: Bíblia completa (ACF, com suporte a mais
+versões — veja abaixo), busca por palavra, Bíblia em áudio, orações
+guiadas, quiz bíblico e guia de ministração. Interface em português, tema
+claro/escuro, responsivo em retrato e paisagem, 100% client-side (sem
+backend).
 
 ## Funcionalidades
 
 - **Bíblia completa** — 66 livros, navegação por Antigo/Novo Testamento,
   grade de capítulos, leitura com fonte e espaçamento ajustáveis
+- **Múltiplas versões** — seletor de versão na tela da Bíblia; ACF já
+  incluída, com BLIVRE (Bíblia Livre) e ARC 1911 preparadas na
+  arquitetura, faltando só o arquivo de dados — veja "Versões da Bíblia"
+  abaixo
 - **Narrativa em voz alta com controle completo** — Iniciar/Pausar/
   Continuar/Parar de verdade (continuar retoma do mesmo versículo, não
   reinicia o capítulo), anúncio do livro e capítulo antes de começar, e
@@ -16,6 +22,13 @@ português, tema claro/escuro, 100% client-side (sem backend).
   Explicação, Contexto, Aplicação e Conceitos importantes (comentário
   curado para ~25 versículos centrais; para os demais, um link honesto
   para buscar comentário externo — veja "Limitações conhecidas" abaixo)
+- **Instalável como app** — em navegadores compatíveis (Chrome/Edge/
+  Android), Configurações mostra um botão para instalar o app na tela
+  inicial, abrindo em tela cheia sem a barra de endereço do navegador
+- **Guia de Ministração** — 12 temas (fé, oração, amor, perdão, família...)
+  com busca por tema, passagem principal, esboço estruturado (introdução,
+  pontos, aplicação, oração final) e versículos de apoio, pronto para
+  conduzir um estudo, devocional ou pregação curta
 - **Seleção de texto** — selecione qualquer trecho do capítulo para
   Compartilhar, Explicar (abre uma busca sobre o trecho) ou Narrar
 - **Busca** — encontra qualquer palavra ou frase em todo o texto bíblico
@@ -145,6 +158,53 @@ necessário nenhum passo de build.
   versículo do início — é 100% confiável em qualquer navegador, ao custo
   de não retomar no meio exato de uma frase.
 
+## Versões da Bíblia
+
+O app já vem com a **ACF** (Almeida Corrigida Fiel) e tem a arquitetura
+pronta para outras versões — falta só o arquivo de dados de cada uma.
+
+**Por que não vieram prontas:** a maioria das traduções mais conhecidas em
+português (NVI, ARA, NTLH, Almeida Século 21 etc.) é protegida por
+direitos autorais das editoras/sociedades bíblicas — não é apropriado
+redistribuir o texto completo sem licença. Pesquisei alternativas de uso
+livre e escolhi duas:
+
+- **Bíblia Livre (BLIVRE)** — tradução moderna sob licença Creative
+  Commons Atribuição (uso livre, inclusive comercial, com menção da
+  fonte).
+- **ARC 1911 (Almeida Revista e Corrigida, 1911)** — edição em domínio
+  público.
+
+Encontrei duas fontes prontas com essas versões em JSON, com licença clara:
+`damarals/biblias` no GitHub, e o pacote "All Bibles - JSON" do Bible
+SuperSearch no SourceForge (esse último inclusive avisa explicitamente que
+os arquivos são livres para compartilhar/redistribuir). **Não consegui
+baixar nenhum dos dois automaticamente neste ambiente** — pesquisei a
+fundo (inclusive numa segunda tentativa, já com um serviço diferente),
+mas os dois exigem um redirecionamento (GitHub Releases e o "seu download
+vai começar em instantes..." do SourceForge) que minha ferramenta de
+busca não consegue seguir sozinha; ela só acessa o conteúdo bruto de uma
+URL, sem executar esse redirecionamento como um navegador faria. Baixando
+pelo seu próprio navegador isso não acontece — é só um limite desta
+sessão, não um problema de licença.
+
+**Como adicionar (leva menos de 2 minutos, num navegador comum):**
+
+1. Baixe o arquivo da versão desejada (qualquer uma das fontes funciona):
+   - Bíblia Livre: `https://sourceforge.net/projects/biblesuper/files/All%20Bibles%20-%20JSON/PT-Portuguese/blivre.json/download`
+     ou `https://github.com/damarals/biblias/releases/latest/download/BLIVRE.json`
+   - ARC 1911: `https://sourceforge.net/projects/biblesuper/files/All%20Bibles%20-%20JSON/PT-Portuguese/almeida_rc.json/download`
+     ou `https://github.com/damarals/biblias/releases/latest/download/ALM1911.json`
+2. Salve o arquivo dentro da pasta `data/` deste projeto, com o nome:
+   - `data/bible-blivre.json` (para a Bíblia Livre)
+   - `data/bible-alm1911.json` (para a ARC 1911)
+3. Abra `data/bibleVersions.js` e mude `available: false` para
+   `available: true` na versão correspondente.
+4. Pronto — o seletor de versão na tela da Bíblia passa a usá-la
+   normalmente. (Se o formato do JSON baixado for diferente do usado em
+   `data/bible-acf.json` — array de livros com `{abbrev, name, chapters}` —
+   me envie o arquivo numa próxima conversa que eu ajusto a conversão.)
+
 ## Limitações conhecidas
 
 - **Explicação de versículo com IA**: este app é 100% estático (sem
@@ -167,6 +227,20 @@ necessário nenhum passo de build.
 - **Avanço automático de capítulo** funciona dentro do mesmo livro; ao
   concluir o último capítulo de um livro, o app avisa e para (não pula
   automaticamente para o primeiro capítulo do próximo livro).
+- **Guia de Ministração**: mesma lógica do comentário de versículo — 12
+  temas com esboço elaborado com cuidado (`data/ministryOutlines.js`), não
+  geração automática para qualquer tema que se possa imaginar. Para
+  ampliar, basta seguir o mesmo formato e adicionar novas entradas. A
+  busca só filtra os temas existentes — digitar um tema novo não gera um
+  esboço automaticamente pelo mesmo motivo (sem backend/IA), mas oferece
+  buscar conteúdo externo sobre ele.
+- **Em paisagem** (celular deitado), a toolbar de leitura (Iniciar/Pausar/
+  Parar/fonte/espaçamento) ficava grande demais e cobria o texto do
+  capítulo — os botões agora encolhem em telas baixas para deixar espaço
+  de leitura de verdade.
+- **App instalável**: adicionado `manifest.json` (ícone, nome, `display:
+  standalone`) e um botão "Instalar aplicativo" em Configurações — abre
+  sem a barra de endereço do navegador quando instalado.
 
 ## O que mudou em relação ao protótipo original
 

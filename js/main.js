@@ -18,6 +18,8 @@ import { prayerPage } from './features/prayer/prayer.js';
 import { quizPage } from './features/quiz/quiz.js';
 import { profilePage } from './features/profile/profile.js';
 import { settingsPage } from './features/settings/settings.js';
+import { ministryListPage } from './features/ministry/ministryList.js';
+import { ministryDetailPage } from './features/ministry/ministryDetail.js';
 import { notFoundPage } from './features/notFound.js';
 
 const NAV_ICONS = { home: icons.home, bible: icons.bibleNav, audio: icons.audio, prayer: icons.prayer, profile: icons.profile };
@@ -84,6 +86,8 @@ function initRoutes() {
   registerRoute('/audio', audioPage, { title: 'Bíblia em Áudio', navKey: 'audio', showSettings: true });
   registerRoute('/oracao', prayerPage, { title: 'Oração Diária', navKey: 'prayer', showSettings: true });
   registerRoute('/quiz', quizPage, { title: 'Quiz Bíblico', navKey: null, showBack: true });
+  registerRoute('/ministracao', ministryListPage, { title: 'Guia de Ministração', navKey: null, showBack: true });
+  registerRoute('/ministracao/:id', ministryDetailPage, { title: 'Guia de Ministração', navKey: null, showBack: true });
   registerRoute('/perfil', profilePage, { title: 'Meu Perfil', navKey: 'profile', showSettings: true });
   registerRoute('/configuracoes', settingsPage, { title: 'Configurações', navKey: null, showBack: true });
   setNotFound(notFoundPage);

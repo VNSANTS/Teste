@@ -92,6 +92,11 @@ function template() {
         <div class="menu-title">Quiz Bíblico</div>
         <div class="menu-desc">Teste seus conhecimentos</div>
       </button>
+      <button class="menu-item" data-route="/ministracao">
+        <div class="menu-icon">${icons.explain}</div>
+        <div class="menu-title">Guia de Ministração</div>
+        <div class="menu-desc">Temas, passagens e esboços</div>
+      </button>
     </div>
 
     <div class="section-title">Planos de Leitura</div>

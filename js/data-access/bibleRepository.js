@@ -1,10 +1,12 @@
 // Camada de acesso aos dados bíblicos.
 //
-// Hoje os dados vêm de um JSON estático (data/bible-acf.json), carregado sob
-// demanda (só quando o usuário entra na Bíblia) para manter a carga inicial
-// leve. A interface abaixo foi desenhada para que, no futuro, uma
-// implementação equivalente possa buscar os mesmos dados de uma API/backend
-// sem exigir mudanças nas telas que a consomem:
+// Os dados vêm de um JSON estático por versão (data/bible-<id>.json),
+// carregado sob demanda (só quando o usuário entra na Bíblia) para manter
+// a carga inicial leve, e mantido em cache por versão — trocar de versão
+// não precisa rebaixar a que já foi carregada. A interface abaixo foi
+// desenhada para que, no futuro, uma implementação equivalente possa
+// buscar os mesmos dados de uma API/backend sem exigir mudanças nas telas
+// que a consomem:
 //
 //   getAllBooks()              -> [{ index, name, abbrev, chapterCount }]
 //   getChapter(bookIndex, ch)  -> string[] (versículos do capítulo)
@@ -12,31 +14,41 @@
 //
 // Basta criar, por exemplo, um `ApiBibleRepository` com a mesma forma e
 // trocar a importação nas features que usam este módulo.
+import { getBibleVersionMeta } from '../state/bibleVersion.js';
 
-const DATA_URL = new URL('../../data/bible-acf.json', import.meta.url);
-
-let cache = null;
-let loadPromise = null;
+const cacheByVersion = new Map(); // id -> dados carregados
+const loadPromiseByVersion = new Map(); // id -> Promise em andamento
 
 function load() {
-  if (cache) return Promise.resolve(cache);
-  if (loadPromise) return loadPromise;
+  const meta = getBibleVersionMeta();
+  const id = meta.id;
 
-  loadPromise = fetch(DATA_URL)
+  if (!meta.available) {
+    return Promise.reject(
+      new Error(`O arquivo de dados de "${meta.name}" ainda não foi adicionado a este projeto (data/${meta.file}).`)
+    );
+  }
+  if (cacheByVersion.has(id)) return Promise.resolve(cacheByVersion.get(id));
+  if (loadPromiseByVersion.has(id)) return loadPromiseByVersion.get(id);
+
+  const dataUrl = new URL(`../../data/${meta.file}`, import.meta.url);
+  const promise = fetch(dataUrl)
     .then((res) => {
       if (!res.ok) throw new Error(`Falha ao carregar dados da Bíblia (HTTP ${res.status})`);
       return res.json();
     })
     .then((data) => {
-      cache = data;
-      return cache;
+      cacheByVersion.set(id, data);
+      loadPromiseByVersion.delete(id);
+      return data;
     })
     .catch((err) => {
-      loadPromise = null; // permite tentar novamente
+      loadPromiseByVersion.delete(id); // permite tentar novamente
       throw err;
     });
 
-  return loadPromise;
+  loadPromiseByVersion.set(id, promise);
+  return promise;
 }
 
 export async function getAllBooks() {

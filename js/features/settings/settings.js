@@ -14,6 +14,7 @@ import {
   findVoiceByGender,
 } from '../../utils/speech.js';
 import { getVoiceSettings, setVoiceSettings, resetVoiceSettings, DEFAULT_VOICE_SETTINGS } from '../../state/voiceSettings.js';
+import { isInstallAvailable, onInstallAvailabilityChange, promptInstall } from '../../state/installPrompt.js';
 
 const SAMPLE_TEXT = 'O Senhor é o meu pastor; nada me faltará.';
 
@@ -68,6 +69,7 @@ function template(settings) {
             <button type="button" data-gender="female" class="${pref === 'female' ? 'active' : ''}">Feminina</button>
             <button type="button" data-gender="auto" class="${pref === 'auto' ? 'active' : ''}">Automática</button>
           </div>
+          <div class="voice-hint" id="voiceHint" hidden></div>
         </div>
 
         <div class="setting-row">
@@ -104,6 +106,14 @@ function template(settings) {
       </div>
     </div>
 
+    <div class="settings-section" id="installSection" ${isInstallAvailable() ? '' : 'hidden'}>
+      <div class="settings-section-title">Aplicativo</div>
+      <div class="settings-card">
+        <p class="ministry-plain-text" style="margin-bottom:14px;">Instale o app na tela inicial para abrir em tela cheia, sem a barra de endereço do navegador.</p>
+        <button class="read-btn read-btn--primary" id="btnInstallApp" style="width:100%;">📲 Instalar aplicativo</button>
+      </div>
+    </div>
+
     <div class="app-info">
       Bíblia de Estudo<br>
       Texto: versão ACF (Almeida Corrigida Fiel)
@@ -127,9 +137,19 @@ export const settingsPage = {
     const pitchValue = qs('#pitchValue', container);
     const rateValue = qs('#rateValue', container);
     const genderToggle = qs('#genderToggle', container);
+    const voiceHint = qs('#voiceHint', container);
 
     function setActiveGenderButton(pref) {
       qsa('button', genderToggle).forEach((btn) => btn.classList.toggle('active', btn.dataset.gender === pref));
+    }
+
+    function showVoiceHint(message) {
+      voiceHint.textContent = message;
+      voiceHint.hidden = false;
+    }
+
+    function hideVoiceHint() {
+      voiceHint.hidden = true;
     }
 
     genderToggle.addEventListener('click', (e) => {
@@ -141,17 +161,29 @@ export const settingsPage = {
         setVoiceSettings({ voiceURI: null });
         voiceSelect.value = '';
         setActiveGenderButton('auto');
+        hideVoiceHint();
         return;
       }
 
       const voice = findVoiceByGender(pref);
       if (!voice) {
-        toast.info(`Nenhuma voz ${pref === 'male' ? 'masculina' : 'feminina'} encontrada neste aparelho — usando a melhor voz em português disponível.`);
+        // Em vários aparelhos (sobretudo Android) as vozes vêm com nome
+        // genérico ("português do Brasil"), sem nenhuma pista de gênero —
+        // não tem como adivinhar automaticamente. Em vez de só mostrar um
+        // toast que some sozinho, deixa uma dica fixa e guia para o teste
+        // manual de cada voz disponível.
+        const genderWord = pref === 'male' ? 'masculina' : 'feminina';
+        toast.info(`Nenhuma voz ${genderWord} identificada automaticamente neste aparelho.`);
+        showVoiceHint(
+          `Não conseguimos identificar pelo nome qual voz deste aparelho é ${genderWord} — isso depende do sistema/navegador. Escolha uma opção em "Voz específica" abaixo e toque em "Testar voz" para ouvir qual combina.`
+        );
         setVoiceSettings({ voiceURI: null });
         voiceSelect.value = '';
         setActiveGenderButton('auto');
+        voiceSelect.focus();
         return;
       }
+      hideVoiceHint();
       setVoiceSettings({ voiceURI: voice.voiceURI });
       voiceSelect.value = voice.voiceURI;
       setActiveGenderButton(pref);
@@ -175,6 +207,7 @@ export const settingsPage = {
       const voice = getAvailableVoices().find((v) => v.voiceURI === voiceURI);
       const gender = voiceURI ? guessVoiceGender(voice) : 'auto';
       setActiveGenderButton(gender === 'unknown' ? 'auto' : gender);
+      if (voiceURI) hideVoiceHint();
     });
 
     // A lista de vozes do navegador pode carregar de forma assíncrona.
@@ -199,11 +232,25 @@ export const settingsPage = {
       rateValue.textContent = rateLabel(settings.rate);
       voiceSelect.innerHTML = voiceOptionsHtml(getAvailableVoices(), null);
       setActiveGenderButton('auto');
+      hideVoiceHint();
       toast.success('Configurações de voz restauradas');
+    });
+
+    const installSection = qs('#installSection', container);
+    const installBtn = qs('#btnInstallApp', container);
+    if (installBtn) {
+      installBtn.addEventListener('click', async () => {
+        const outcome = await promptInstall();
+        if (outcome === 'accepted') toast.success('Instalando o aplicativo...');
+      });
+    }
+    const unsubscribeInstall = onInstallAvailabilityChange((available) => {
+      if (installSection) installSection.hidden = !available;
     });
 
     return () => {
       unsubscribeVoices();
+      unsubscribeInstall();
       stopSpeech();
     };
   },

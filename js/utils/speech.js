@@ -18,16 +18,32 @@ const voicesListeners = new Set();
 
 // A Web Speech API não expõe o gênero da voz — só dá pra estimar pelo nome.
 // Cobre os nomes de voz em português mais comuns no Windows/Edge, macOS/iOS
-// e Android/Chrome.
-const MALE_NAME_HINTS = ['daniel', 'duarte', 'felipe', 'ricardo', 'diego', 'diogo', 'bruno', 'rodrigo', 'antonio', 'antónio', 'joaquim', 'paulo', 'pedro', 'carlos', 'jorge', 'miguel', 'tiago', 'thiago', 'masculin', 'male'];
-const FEMALE_NAME_HINTS = ['maria', 'luciana', 'camila', 'fernanda', 'joana', 'ines', 'inês', 'raquel', 'helia', 'hélia', 'catarina', 'feminin', 'female'];
+// e Android/Chrome. Em muitos aparelhos Android/Chrome (sobretudo com o
+// motor de TTS do Google), as vozes vêm com nome totalmente genérico, tipo
+// "português do Brasil", sem nenhuma pista de gênero — nesse caso a
+// detecção automática não tem como funcionar, e a tela de Configurações
+// orienta o usuário a testar as vozes manualmente.
+const MALE_NAME_HINTS = ['daniel', 'duarte', 'felipe', 'ricardo', 'diego', 'diogo', 'bruno', 'rodrigo', 'antonio', 'antónio', 'joaquim', 'paulo', 'pedro', 'carlos', 'jorge', 'miguel', 'tiago', 'thiago', 'masculin'];
+const FEMALE_NAME_HINTS = ['maria', 'luciana', 'camila', 'fernanda', 'joana', 'ines', 'inês', 'raquel', 'helia', 'hélia', 'catarina', 'feminin'];
 
-/** Estima o gênero de uma voz pelo nome (heurística, sem garantia). */
+/** Testa se `text` contém `hint` como palavra isolada (evita, por exemplo,
+ * que "female" seja confundido com "male" por conter esse trecho). */
+function containsWord(text, hint) {
+  if (!/^[a-z]+$/.test(hint)) return text.includes(hint); // hints com acento: substring simples
+  return new RegExp(`(?:^|[^a-z])${hint}(?:[^a-z]|$)`, 'i').test(text);
+}
+
+/** Estima o gênero de uma voz pelo nome/identificador (heurística, sem
+ * garantia). Verifica "female" antes de "male" para não classificar como
+ * masculina uma voz cujo nome contenha a palavra "female" (que contém
+ * "male" como substring). */
 export function guessVoiceGender(voice) {
-  if (!voice || !voice.name) return 'unknown';
-  const name = voice.name.toLowerCase();
-  if (MALE_NAME_HINTS.some((hint) => name.includes(hint))) return 'male';
-  if (FEMALE_NAME_HINTS.some((hint) => name.includes(hint))) return 'female';
+  if (!voice) return 'unknown';
+  const haystack = `${voice.name || ''} ${voice.voiceURI || ''}`.toLowerCase();
+  const isFemale = FEMALE_NAME_HINTS.some((hint) => haystack.includes(hint)) || containsWord(haystack, 'female');
+  if (isFemale) return 'female';
+  const isMale = MALE_NAME_HINTS.some((hint) => haystack.includes(hint)) || containsWord(haystack, 'male');
+  if (isMale) return 'male';
   return 'unknown';
 }
 

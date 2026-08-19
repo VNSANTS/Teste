@@ -1,10 +1,25 @@
-// Tela: lista de livros da Bíblia, com abas Antigo Testamento / Novo Testamento.
+// Tela: lista de livros da Bíblia, com seletor de versão e abas
+// Antigo Testamento / Novo Testamento.
 import { qs, qsa, el } from '../../utils/dom.js';
+import { toast } from '../../utils/toast.js';
 import { navigateTo } from '../../router.js';
 import { getAllBooks } from '../../data-access/bibleRepository.js';
+import { BIBLE_VERSIONS } from '../../../data/bibleVersions.js';
+import { getBibleVersion, setBibleVersion } from '../../state/bibleVersion.js';
+
+function versionSelectorHtml() {
+  const current = getBibleVersion();
+  const buttons = BIBLE_VERSIONS.map((v) => {
+    const active = v.id === current ? 'active' : '';
+    const dimmed = v.available ? '' : 'version-pill--unavailable';
+    return `<button type="button" class="version-pill ${active} ${dimmed}" data-version="${v.id}">${v.label}</button>`;
+  }).join('');
+  return `<div class="version-selector" id="versionSelector">${buttons}</div>`;
+}
 
 function template() {
   return `
+    ${versionSelectorHtml()}
     <div class="bible-nav-tabs">
       <button class="bible-nav-tab active" data-testament="old">Antigo Test.</button>
       <button class="bible-nav-tab" data-testament="new">Novo Test.</button>
@@ -29,6 +44,22 @@ function renderBookButtons(listEl, books) {
   });
 }
 
+function attachVersionSelector(container, onSwitched) {
+  qsa('.version-pill', container).forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.version;
+      if (id === getBibleVersion()) return;
+      const meta = BIBLE_VERSIONS.find((v) => v.id === id);
+      if (!meta.available) {
+        toast.info(`${meta.name}: ${meta.note}`);
+        return;
+      }
+      setBibleVersion(id);
+      onSwitched();
+    });
+  });
+}
+
 export const bookListPage = {
   async render(container) {
     container.innerHTML = '<div class="state-message">Carregando livros...</div>';
@@ -37,7 +68,11 @@ export const bookListPage = {
     try {
       books = await getAllBooks();
     } catch (err) {
-      container.innerHTML = `<div class="state-message error">Não foi possível carregar a Bíblia. Verifique sua conexão e tente novamente.</div>`;
+      container.innerHTML = `
+        <div class="state-message error">Não foi possível carregar a Bíblia. Verifique sua conexão e tente novamente.</div>
+        ${versionSelectorHtml()}
+      `;
+      attachVersionSelector(container, () => bookListPage.render(container));
       return;
     }
 
@@ -56,5 +91,7 @@ export const bookListPage = {
         newList.style.display = isOld ? 'none' : 'flex';
       });
     });
+
+    attachVersionSelector(container, () => bookListPage.render(container));
   },
 };

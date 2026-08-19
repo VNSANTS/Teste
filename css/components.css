@@ -430,6 +430,24 @@
 .badge-item.unlocked .badge-name { color: var(--text-primary); }
 
 /* --- Bíblia: navegação por abas AT/NT --- */
+.version-selector { display: flex; gap: 6px; margin-bottom: 14px; padding: 0 4px; flex-wrap: wrap; }
+.version-pill {
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--navy-light);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+.version-pill.active { background: var(--gold-soft); color: var(--gold); border-color: var(--gold); }
+.version-pill--unavailable { opacity: 0.55; }
+.version-pill--unavailable::after { content: ' ⋯'; }
+
 .bible-nav-tabs { display: flex; gap: 8px; margin-bottom: 12px; padding: 0 4px; }
 .bible-nav-tab {
   flex: 1;
@@ -695,11 +713,63 @@
   transition: all 0.2s ease;
 }
 .gender-toggle button.active { background: var(--gold-soft); color: var(--gold); border-color: var(--gold); }
+.voice-hint {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--gold-glow);
+  border: 1px solid rgba(201,169,110,0.25);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
 
 .settings-actions { display: flex; gap: 10px; margin: 4px 0 18px; }
 .settings-actions .tool-btn { flex: 1; justify-content: center; padding: 12px; }
 
 .app-info { text-align: center; padding: 8px 0 24px; color: var(--text-tertiary); font-size: 12px; line-height: 1.6; }
+
+/* --- Guia de Ministração --- */
+.ministry-intro { font-size: 13px; color: var(--text-secondary); line-height: 1.6; padding: 4px 4px 16px; }
+.ministry-header-card {
+  border-radius: 16px;
+  padding: 18px 20px;
+  background: linear-gradient(135deg, var(--gold-soft), var(--gold-glow));
+  border: 1px solid rgba(201,169,110,0.25);
+}
+.ministry-theme-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.ministry-header-card h2 { font-family: var(--font-display); font-size: 24px; color: var(--text-primary); margin: 0; }
+.ministry-outline-card {
+  border-radius: 16px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  background: var(--navy-light);
+}
+.ministry-intro-text { font-size: 13px; line-height: 1.65; color: var(--text-secondary); margin: 0 0 16px; font-style: italic; }
+.ministry-point { margin-bottom: 16px; }
+.ministry-point:last-child { margin-bottom: 0; }
+.ministry-point h4 { font-size: 14px; font-weight: 700; color: var(--gold); margin: 0 0 6px; }
+.ministry-point p { font-size: 13px; line-height: 1.6; color: var(--text-secondary); margin: 0; }
+.ministry-plain-text { font-size: 13px; line-height: 1.65; color: var(--text-secondary); margin: 0; }
+.ministry-ref-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0 8px; }
+.ministry-ref-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--navy-light);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
 
 /* --- Popup de seleção de texto (compartilhar / explicar / narrar) --- */
 .selection-toolbar {

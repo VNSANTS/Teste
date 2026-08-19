@@ -7,6 +7,7 @@ const STORAGE_VERSION = 1;
 export const STORAGE_KEYS = {
   theme: 'biblia:theme',
   bibleProgress: 'biblia:bible-progress',
+  bibleVersion: 'biblia:bible-version',
   favorites: 'biblia:favorites',
   settings: 'biblia:settings',
   voice: 'biblia:voice-settings',

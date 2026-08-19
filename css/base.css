@@ -249,7 +249,13 @@ svg {
 }
 .state-message.error { color: var(--danger); }
 
-@media (max-width: 420px) {
+/* "Modo celular" (tela cheia, sem moldura arredondada): dispara tanto por
+   largura pequena (retrato) quanto por altura pequena (paisagem — um
+   celular deitado tem largura grande mas altura pequena, então só olhar a
+   largura fazia a tela de paisagem virar por engano o "mockup" de
+   desktop). O teto de largura evita disparar em janelas de desktop
+   apenas baixas. */
+@media (max-width: 420px), (max-height: 430px) and (max-width: 950px) {
   body { padding: 0; }
   .phone-frame {
     border-radius: 0;
@@ -260,6 +266,27 @@ svg {
     box-shadow: none;
   }
   .home-indicator { display: none; }
+}
+
+/* Paisagem em tela baixa: encolhe splash/cabeçalho/nav pra caber sem
+   cortar conteúdo nem exigir rolagem da tela inteira. */
+@media (max-height: 430px) and (orientation: landscape) {
+  .splash-media { width: 130px; height: 130px; }
+  .splash-title { font-size: 19px; margin-top: 10px; }
+  .splash-subtitle { font-size: 10px; margin-top: 3px; }
+  .splash-loading { margin-top: 12px; }
+  .app-header { padding: 8px 20px 4px; }
+  .app-header h1 { font-size: 18px; }
+  .bottom-nav { padding: 4px 0 8px; }
+  .nav-item span { font-size: 9px; }
+
+  /* Leitor de capítulo: a toolbar (6 botões) + cabeçalho não pode tomar
+     tanto espaço vertical a ponto de cobrir o texto do capítulo. */
+  .read-header { padding: 6px 0; position: static; }
+  .read-subtitle { font-size: 11px; margin-top: 0; }
+  .read-toolbar { gap: 6px; padding: 6px 8px; }
+  .tool-btn { padding: 5px 8px; font-size: 11px; gap: 3px; }
+  .read-content { padding: 8px 16px 16px; }
 }
 
 /* Desktop: expandir a interface de forma inteligente em vez de um
