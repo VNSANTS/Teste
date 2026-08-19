@@ -240,7 +240,9 @@ sessão, não um problema de licença.
   de leitura de verdade.
 - **App instalável**: adicionado `manifest.json` (ícone, nome, `display:
   standalone`) e um botão "Instalar aplicativo" em Configurações — abre
-  sem a barra de endereço do navegador quando instalado.
+  sem a barra de endereço do navegador quando instalado. O ícone do app
+  (favicon e ícones de instalação) usa a imagem enviada pelo usuário
+  (livro aberto, cruz e pôr do sol dentro de um círculo dourado).
 
 ## O que mudou em relação ao protótipo original
 
