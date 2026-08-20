@@ -27,8 +27,6 @@ import { openExternalExplanation } from '../../utils/externalExplain.js';
 const DEFAULT_SETTINGS = { fontSize: 18, lineHeight: 1.8 };
 const MIN_FONT = 12;
 const MAX_FONT = 32;
-const MIN_LINE = 1.2;
-const MAX_LINE = 2.5;
 const VERSE_PAUSE_MS = 450; // pausa natural entre versículos
 
 // Sinaliza para a PRÓXIMA renderização do leitor que ela deve iniciar a
@@ -59,8 +57,6 @@ function template() {
         <button class="tool-btn" id="btnStop" title="Parar leitura" disabled>${icons.stop}<span>Parar</span></button>
         <button class="tool-btn" id="btnFontMinus" aria-label="Diminuir fonte">A-</button>
         <button class="tool-btn" id="btnFontPlus" aria-label="Aumentar fonte">A+</button>
-        <button class="tool-btn" id="btnLineMinus" aria-label="Diminuir espaçamento">⇕-</button>
-        <button class="tool-btn" id="btnLinePlus" aria-label="Aumentar espaçamento">⇕+</button>
       </div>
     </div>
     <div id="readContent" class="read-content"></div>
@@ -152,14 +148,6 @@ export const readerPage = {
     });
     qs('#btnFontPlus', container).addEventListener('click', () => {
       settings.fontSize = Math.min(MAX_FONT, settings.fontSize + 1);
-      applySettings();
-    });
-    qs('#btnLineMinus', container).addEventListener('click', () => {
-      settings.lineHeight = Math.max(MIN_LINE, +(settings.lineHeight - 0.1).toFixed(2));
-      applySettings();
-    });
-    qs('#btnLinePlus', container).addEventListener('click', () => {
-      settings.lineHeight = Math.min(MAX_LINE, +(settings.lineHeight + 0.1).toFixed(2));
       applySettings();
     });
 

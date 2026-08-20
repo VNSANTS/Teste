@@ -178,32 +178,31 @@ livre e escolhi duas:
 Encontrei duas fontes prontas com essas versões em JSON, com licença clara:
 `damarals/biblias` no GitHub, e o pacote "All Bibles - JSON" do Bible
 SuperSearch no SourceForge (esse último inclusive avisa explicitamente que
-os arquivos são livres para compartilhar/redistribuir). **Não consegui
-baixar nenhum dos dois automaticamente neste ambiente** — pesquisei a
-fundo (inclusive numa segunda tentativa, já com um serviço diferente),
-mas os dois exigem um redirecionamento (GitHub Releases e o "seu download
-vai começar em instantes..." do SourceForge) que minha ferramenta de
-busca não consegue seguir sozinha; ela só acessa o conteúdo bruto de uma
-URL, sem executar esse redirecionamento como um navegador faria. Baixando
-pelo seu próprio navegador isso não acontece — é só um limite desta
-sessão, não um problema de licença.
+os arquivos são livres para compartilhar/redistribuir). **Tentei baixar
+os dois automaticamente várias vezes nesta e em conversas anteriores, sem
+sucesso** — ambos exigem um redirecionamento (GitHub Releases e o "seu
+download vai começar em instantes..." do SourceForge) que minha
+ferramenta de busca não segue sozinha; ela só acessa o conteúdo bruto de
+uma URL, sem executar esse redirecionamento como um navegador faria.
+Baixando pelo seu próprio navegador isso não acontece — é só um limite
+desta sessão, não um problema de licença.
 
-**Como adicionar (leva menos de 2 minutos, num navegador comum):**
+**Forma mais fácil de resolver:** baixe o arquivo da versão desejada no
+link abaixo (abre e baixa direto no seu navegador) e **me envie o
+arquivo numa próxima mensagem** — eu mesmo cuido do resto (conversão de
+formato se precisar, salvar no lugar certo, ativar no seletor de versão).
 
-1. Baixe o arquivo da versão desejada (qualquer uma das fontes funciona):
-   - Bíblia Livre: `https://sourceforge.net/projects/biblesuper/files/All%20Bibles%20-%20JSON/PT-Portuguese/blivre.json/download`
-     ou `https://github.com/damarals/biblias/releases/latest/download/BLIVRE.json`
-   - ARC 1911: `https://sourceforge.net/projects/biblesuper/files/All%20Bibles%20-%20JSON/PT-Portuguese/almeida_rc.json/download`
-     ou `https://github.com/damarals/biblias/releases/latest/download/ALM1911.json`
-2. Salve o arquivo dentro da pasta `data/` deste projeto, com o nome:
-   - `data/bible-blivre.json` (para a Bíblia Livre)
-   - `data/bible-alm1911.json` (para a ARC 1911)
-3. Abra `data/bibleVersions.js` e mude `available: false` para
-   `available: true` na versão correspondente.
-4. Pronto — o seletor de versão na tela da Bíblia passa a usá-la
-   normalmente. (Se o formato do JSON baixado for diferente do usado em
-   `data/bible-acf.json` — array de livros com `{abbrev, name, chapters}` —
-   me envie o arquivo numa próxima conversa que eu ajusto a conversão.)
+- Bíblia Livre: `https://sourceforge.net/projects/biblesuper/files/All%20Bibles%20-%20JSON/PT-Portuguese/blivre.json/download`
+  ou `https://github.com/damarals/biblias/releases/latest/download/BLIVRE.json`
+- ARC 1911: `https://sourceforge.net/projects/biblesuper/files/All%20Bibles%20-%20JSON/PT-Portuguese/almeida_rc.json/download`
+  ou `https://github.com/damarals/biblias/releases/latest/download/ALM1911.json`
+
+Se preferir fazer você mesmo em vez de me enviar o arquivo: salve como
+`data/bible-blivre.json` ou `data/bible-alm1911.json` dentro da pasta
+`data/` deste projeto, depois abra `data/bibleVersions.js` e mude
+`available: false` para `available: true` na versão correspondente — o
+formato esperado é um array de livros com `{abbrev, name, chapters}`,
+igual `data/bible-acf.json`.
 
 ## Limitações conhecidas
 
@@ -287,3 +286,8 @@ foram corrigidos alguns problemas reais encontrados no arquivo original:
   capítulo
 - Adicionado seletor rápido de voz (Masculina/Feminina/Automática) em
   Configurações, além da lista detalhada de vozes já existente
+- Removidos os botões de aumentar/diminuir espaçamento entre linhas
+  (⇕- ⇕+) da tela de leitura — o espaçamento fica fixo no padrão
+- A barra de navegação inferior tinha um espaço vazio grande abaixo dos
+  ícones (mais visível no tema claro); reduzida para caber justo no
+  tamanho dos botões
