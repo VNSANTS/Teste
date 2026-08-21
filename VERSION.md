@@ -1,12 +1,18 @@
-# Bíblia de Estudo — V2.2.0
+# Bíblia de Estudo — V2.0.0
 
-## Narrativa profissional
-- Tela Bíblia em Áudio passou a usar a narrativa TTS do leitor, sem faixas musicais de demonstração.
-- Seleção rápida de livro/capítulo.
-- Velocidade 0,75×, 1×, 1,25×, 1,5×, 1,75× e 2× persistida.
-- Próximo/anterior atravessa a fronteira entre livros.
-- Controles de mídia do Android/web continuam integrados ao leitor.
-- O avanço automático mantém a reprodução no próximo capítulo/livro.
+## Melhorias desta versão
 
-## Observação
-A voz masculina depende das vozes TTS instaladas no aparelho/navegador. A Web Speech API não garante que uma voz específica seja masculina.
+- Narrativa continua automaticamente para o próximo capítulo.
+- Ao terminar o último capítulo de um livro, a narrativa avança para o primeiro capítulo do próximo livro.
+- Ao concluir Apocalipse 22, o app informa que toda a Bíblia foi concluída.
+- Service Worker adicionado para cache do app shell e suporte offline dos arquivos locais já visitados.
+- Registro automático do Service Worker no carregamento do aplicativo.
+- Manifest atualizado com identificador estável para instalação PWA.
+
+## Próxima etapa planejada
+
+- Histórico detalhado de leitura.
+- Estatísticas de progresso da Bíblia.
+- Melhorias no player de áudio e narrativa.
+- Favoritos e anotações por versículo.
+- Preparação com Capacitor para gerar APK Android.
