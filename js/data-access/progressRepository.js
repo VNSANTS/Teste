@@ -1,40 +1,73 @@
-// Repositório do progresso de leitura do usuário.
-//
-// Hoje persiste em localStorage. A forma abaixo (getProgress/saveProgress)
-// foi escolhida de propósito: no futuro, uma `ApiProgressRepository` com a
-// mesma forma poderia buscar/gravar o progresso em um backend, sem exigir
-// mudanças nas telas que o consomem.
-//
-//   getProgress(): Promise<{ book: number, chapter: number, verse: number }>
-//   saveProgress(progress): Promise<void>
-//
-// `verse` é o versículo em que a narrativa (leitura em voz alta) parou —
-// permite retomar exatamente de onde a narrativa foi pausada, mesmo depois
-// de fechar e reabrir o app.
-
+// Repositório local de progresso, histórico, favoritos, anotações e estatísticas.
 import { getItem, setItem, STORAGE_KEYS } from '../utils/storage.js';
 
 const DEFAULT_PROGRESS = { book: 0, chapter: 0, verse: 0 };
+const DEFAULT_STATS = { versesRead: 0, chaptersRead: 0, audioSeconds: 0, prayers: 0, quizCorrect: 0, lastReadAt: null, days: [] };
+
+function normalizeProgress(value) {
+  if (!value || typeof value.book !== 'number' || typeof value.chapter !== 'number') return { ...DEFAULT_PROGRESS };
+  return { book: value.book, chapter: value.chapter, verse: typeof value.verse === 'number' ? value.verse : 0 };
+}
 
 export const LocalStorageProgressRepository = {
-  async getProgress() {
-    const saved = getItem(STORAGE_KEYS.bibleProgress, null);
-    if (!saved || typeof saved.book !== 'number' || typeof saved.chapter !== 'number') {
-      return { ...DEFAULT_PROGRESS };
-    }
-    return { verse: 0, ...saved };
+  async getProgress() { return normalizeProgress(getItem(STORAGE_KEYS.bibleProgress, DEFAULT_PROGRESS)); },
+  async saveProgress(progress) {
+    setItem(STORAGE_KEYS.bibleProgress, normalizeProgress(progress));
   },
 
-  async saveProgress(progress) {
-    const current = getItem(STORAGE_KEYS.bibleProgress, DEFAULT_PROGRESS) || DEFAULT_PROGRESS;
-    setItem(STORAGE_KEYS.bibleProgress, {
-      book: progress.book,
-      chapter: progress.chapter,
-      verse: typeof progress.verse === 'number' ? progress.verse : current.verse || 0,
-    });
+  async markVerseRead({ book, chapter, verse }) {
+    const key = `${book}:${chapter}:${verse}`;
+    const history = getItem(STORAGE_KEYS.readHistory, {});
+    if (!history[key]) history[key] = { book, chapter, verse, firstReadAt: Date.now(), reads: 0 };
+    history[key].reads += 1;
+    history[key].lastReadAt = Date.now();
+    setItem(STORAGE_KEYS.readHistory, history);
+
+    const stats = getItem(STORAGE_KEYS.stats, DEFAULT_STATS) || { ...DEFAULT_STATS };
+    stats.versesRead = Object.keys(history).length;
+    stats.lastReadAt = Date.now();
+    const day = new Date().toISOString().slice(0, 10);
+    stats.days = Array.isArray(stats.days) ? [...new Set([...stats.days, day])] : [day];
+    setItem(STORAGE_KEYS.stats, stats);
   },
+
+  async markChapterRead({ book, chapter }) {
+    const chapters = getItem(STORAGE_KEYS.completedChapters, {});
+    const key = `${book}:${chapter}`;
+    if (!chapters[key]) chapters[key] = Date.now();
+    setItem(STORAGE_KEYS.completedChapters, chapters);
+    const stats = getItem(STORAGE_KEYS.stats, DEFAULT_STATS) || { ...DEFAULT_STATS };
+    stats.chaptersRead = Object.keys(chapters).length;
+    setItem(STORAGE_KEYS.stats, stats);
+  },
+
+  async getStats() {
+    const stats = getItem(STORAGE_KEYS.stats, DEFAULT_STATS) || { ...DEFAULT_STATS };
+    const history = getItem(STORAGE_KEYS.readHistory, {});
+    const chapters = getItem(STORAGE_KEYS.completedChapters, {});
+    return { ...DEFAULT_STATS, ...stats, versesRead: Object.keys(history).length, chaptersRead: Object.keys(chapters).length };
+  },
+
+  async getHistory() { return getItem(STORAGE_KEYS.readHistory, {}); },
+
+  async toggleFavorite(ref, data = {}) {
+    const favorites = getItem(STORAGE_KEYS.favorites, {});
+    if (favorites[ref]) { delete favorites[ref]; setItem(STORAGE_KEYS.favorites, favorites); return false; }
+    favorites[ref] = { ...data, ref, createdAt: Date.now() };
+    setItem(STORAGE_KEYS.favorites, favorites);
+    return true;
+  },
+
+  async isFavorite(ref) { return Boolean(getItem(STORAGE_KEYS.favorites, {})[ref]); },
+  async getFavorites() { return getItem(STORAGE_KEYS.favorites, {}); },
+
+  async saveNote(ref, note) {
+    const notes = getItem(STORAGE_KEYS.notes, {});
+    if (String(note || '').trim()) notes[ref] = { text: String(note).trim(), updatedAt: Date.now() };
+    else delete notes[ref];
+    setItem(STORAGE_KEYS.notes, notes);
+  },
+  async getNote(ref) { return getItem(STORAGE_KEYS.notes, {})[ref]?.text || ''; },
 };
 
-// Implementação ativa hoje. Trocar por uma ApiProgressRepository no futuro
-// não deve exigir mudanças em quem importa `progressRepository`.
 export const progressRepository = LocalStorageProgressRepository;
