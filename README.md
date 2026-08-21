@@ -320,8 +320,3 @@ foram corrigidos alguns problemas reais encontrados no arquivo original:
 - A barra de navegação inferior tinha um espaço vazio grande abaixo dos
   ícones (mais visível no tema claro); reduzida para caber justo no
   tamanho dos botões
-
-## V2.0 — Offline e narrativa contínua
-
-A versão 2 adiciona `sw.js` e registra o Service Worker automaticamente em HTTPS/localhost. O leitor também avança do último capítulo de um livro para o primeiro capítulo do próximo, mantendo a narrativa contínua.
-

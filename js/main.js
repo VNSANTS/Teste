@@ -99,18 +99,8 @@ function initRoutes() {
   });
 }
 
-function registerServiceWorker() {
-  if (!('serviceWorker' in navigator)) return;
-  // Só registra em HTTPS ou localhost, como exigido pelo navegador.
-  if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
-  navigator.serviceWorker.register('./sw.js').catch((err) => {
-    console.warn('[PWA] Service Worker não registrado:', err);
-  });
-}
-
 function init() {
   bindHeaderTitleElement(qs('#headerTitle'));
-  registerServiceWorker();
   initSplashScreen();
   initBottomNavIcons();
   initRoutes();
