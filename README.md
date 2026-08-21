@@ -18,6 +18,10 @@ backend).
   Continuar/Parar de verdade (continuar retoma do mesmo versículo, não
   reinicia o capítulo), anúncio do livro e capítulo antes de começar, e
   avanço automático para o próximo capítulo ao concluir a leitura
+- **Continua tocando com a tela apagada/app em segundo plano** — impede o
+  apagar automático da tela por inatividade e mostra controles na tela de
+  bloqueio (play/pausar/parar/próximo/anterior capítulo); veja "Limitações
+  conhecidas" para o que isso garante de verdade em cada navegador
 - **Explicação de versículo** — toque em qualquer versículo para ver
   Explicação, Contexto, Aplicação e Conceitos importantes (comentário
   curado para ~25 versículos centrais; para os demais, um link honesto
@@ -205,6 +209,31 @@ formato esperado é um array de livros com `{abbrev, name, chapters}`,
 igual `data/bible-acf.json`.
 
 ## Limitações conhecidas
+
+- **Reprodução com a tela apagada / app em segundo plano**: um app web
+  (sem instalar nada nativo) nunca tem garantia total disso — é uma
+  limitação de todo navegador, não só deste projeto. O app usa três
+  técnicas em conjunto, tudo em `js/utils/wakeLock.js`,
+  `js/utils/mediaSession.js` e `js/utils/keepAlive.js`:
+  - **Wake Lock**: impede a tela de apagar sozinha por inatividade
+    enquanto a narrativa toca. Funciona bem em Chrome/Edge/Android; o
+    navegador libera esse "seguro" automaticamente se você trocar de app
+    ou apertar o botão de bloquear manualmente (não tem como impedir
+    isso, e nem deveria).
+  - **Media Session**: mostra controles de play/pausar/parar/capítulo
+    seguinte/anterior na tela de bloqueio e nas notificações, e sinaliza
+    ao navegador que há mídia em reprodução — o que também ajuda o
+    navegador a não suspender a aba tão agressivamente em segundo plano.
+  - **Áudio silencioso em loop**: toca um som inaudível o tempo todo
+    durante a narrativa, técnica comum para sinalizar ao navegador que a
+    aba está "reproduzindo áudio" e por isso merece menos limitação em
+    segundo plano.
+  - Na prática: **Chrome/Android costuma se comportar bem** com essas
+    três técnicas juntas. **Safari/iOS é historicamente bem mais
+    restritivo** com JavaScript em segundo plano e pode pausar a
+    narrativa depois de um tempo com a tela apagada, mesmo com tudo isso
+    implementado — é uma política do próprio Safari, não algo que dá
+    para contornar 100% a partir do código do app.
 
 - **Explicação de versículo com IA**: este app é 100% estático (sem
   backend, sem chave de API), então não há como gerar uma explicação real

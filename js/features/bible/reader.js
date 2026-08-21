@@ -23,6 +23,14 @@ import { setHeaderTitle } from '../../state/header.js';
 import { attachSelectionToolbar } from './selectionToolbar.js';
 import { showVerseExplanation } from './verseExplanation.js';
 import { openExternalExplanation } from '../../utils/externalExplain.js';
+import { requestWakeLock, releaseWakeLock, setupWakeLockReacquire } from '../../utils/wakeLock.js';
+import { startKeepAlive, stopKeepAlive } from '../../utils/keepAlive.js';
+import {
+  setMediaSessionMetadata,
+  setMediaSessionPlaybackState,
+  setMediaSessionHandlers,
+  clearMediaSession,
+} from '../../utils/mediaSession.js';
 
 const DEFAULT_SETTINGS = { fontSize: 18, lineHeight: 1.8 };
 const MIN_FONT = 12;
@@ -187,6 +195,29 @@ export const readerPage = {
     function highlightVerse(idx) {
       verseEls.forEach((v, i) => v.classList.toggle('reading', i === idx));
       if (verseEls[idx]) verseEls[idx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setMediaSessionMetadata({
+        title: `${book.name} ${chapterIndex + 1}:${idx + 1}`,
+        artist: 'Narrativa em voz alta',
+        album: 'Bíblia de Estudo',
+      });
+    }
+
+    // Mantém a leitura tocando em segundo plano (app minimizado) e com a
+    // tela apagada: impede o apagar automático por inatividade (Wake
+    // Lock), toca um áudio silencioso que sinaliza ao navegador que há
+    // mídia em reprodução, e liga os controles de mídia na tela de
+    // bloqueio. Nenhuma dessas técnicas garante 100% em todo aparelho —
+    // é o melhor possível para um app web (sem instalar nada nativo).
+    async function syncBackgroundPlayback(isPlaying) {
+      if (isPlaying) {
+        await requestWakeLock();
+        await startKeepAlive();
+        setMediaSessionPlaybackState('playing');
+      } else {
+        await releaseWakeLock();
+        stopKeepAlive();
+        setMediaSessionPlaybackState('paused');
+      }
     }
 
     function persistVerseProgress() {
@@ -221,12 +252,14 @@ export const readerPage = {
       readingIndex = 0;
       clearHighlights();
       updateControlsUI();
+      syncBackgroundPlayback(false);
       progressRepository.saveProgress({ book: bookIndex, chapter: chapterIndex, verse: 0 });
 
       const hasNextChapter = chapterIndex < book.chapterCount - 1;
       if (!hasNextChapter) {
         toast.success('Você concluiu o último capítulo deste livro.');
         speak('Você concluiu o último capítulo deste livro.', {});
+        clearMediaSession();
         return;
       }
 
@@ -246,6 +279,7 @@ export const readerPage = {
       readingState = 'playing';
       readingIndex = fromVerse;
       updateControlsUI();
+      syncBackgroundPlayback(true);
       const announcement = `Vamos iniciar a leitura de ${book.name}, capítulo ${chapterIndex + 1}.`;
       speak(announcement, {
         onEnd: () => setTimeout(readLoop, 250),
@@ -258,6 +292,7 @@ export const readerPage = {
       stopSpeech();
       readingState = 'paused';
       updateControlsUI();
+      syncBackgroundPlayback(false);
       persistVerseProgress();
       toast.info('Leitura pausada');
     }
@@ -268,6 +303,7 @@ export const readerPage = {
       if (readingState !== 'paused') return;
       readingState = 'playing';
       updateControlsUI();
+      syncBackgroundPlayback(true);
       readLoop();
     }
 
@@ -277,6 +313,8 @@ export const readerPage = {
       readingIndex = 0;
       clearHighlights();
       updateControlsUI();
+      syncBackgroundPlayback(false);
+      clearMediaSession();
       progressRepository.saveProgress({ book: bookIndex, chapter: chapterIndex, verse: 0 });
     }
 
@@ -293,6 +331,26 @@ export const readerPage = {
       stopReading();
       toast.info('Leitura parada');
     });
+
+    // Controles de mídia na tela de bloqueio / central de notificações.
+    setMediaSessionHandlers({
+      onPlay: () => {
+        if (readingState === 'idle') startFresh(readingIndex);
+        else if (readingState === 'paused') continueReading();
+      },
+      onPause: pauseReading,
+      onStop: stopReading,
+      onNext: () => {
+        if (chapterIndex < book.chapterCount - 1) navigateTo(`/biblia/${bookIndex}/${chapterIndex + 1}`);
+      },
+      onPrev: () => {
+        if (chapterIndex > 0) navigateTo(`/biblia/${bookIndex}/${chapterIndex - 1}`);
+      },
+    });
+
+    // O navegador libera o wake lock sozinho quando a aba fica oculta;
+    // readquire ao voltar, se a narrativa ainda estiver tocando.
+    const detachWakeLockReacquire = setupWakeLockReacquire(() => readingState === 'playing');
 
     updateControlsUI();
 
@@ -342,11 +400,16 @@ export const readerPage = {
       onNarrate: handleNarrateSelection,
     });
 
-    // Cleanup: para a leitura em voz alta e remove os listeners de seleção
-    // de texto ao sair da tela.
+    // Cleanup: para a leitura em voz alta, desliga wake lock/áudio
+    // silencioso/media session, e remove os listeners de seleção de
+    // texto ao sair da tela.
     return () => {
       stopSpeech();
       detachSelectionToolbar();
+      detachWakeLockReacquire();
+      releaseWakeLock();
+      stopKeepAlive();
+      clearMediaSession();
     };
   },
 };
