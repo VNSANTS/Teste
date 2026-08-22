@@ -33,6 +33,13 @@ O APK de debug será criado em:
 
 > Para o build local pelo Termux também é necessário ter Java e o Android SDK configurados. O GitHub Actions evita essa instalação pesada no celular.
 
+## Correções aplicadas nesta versão
+
+- O workflow tentava usar cache do npm (`cache: npm`) sem existir `package-lock.json` no projeto — isso fazia o Actions falhar logo no passo "Setup Node.js" com erro de "lock file not found". O cache foi removido.
+- O passo "Setup Android SDK" (`android-actions/setup-android`) foi removido: os runners `ubuntu-latest` do GitHub já vêm com o Android SDK instalado e licenciado, e essa action (não mantida há tempos) só criava risco de conflito.
+- `bundledWebRuntime: false` foi removido do `capacitor.config.ts` — essa opção foi **removida** no Capacitor 7 (o projeto usa `@capacitor/core ^7.4.0`).
+- O workflow de publicação no GitHub Pages estava salvo em `www/.github/workflows/`, um lugar que o GitHub Actions não reconhece (só a pasta `.github/workflows` na raiz do repositório funciona). Ele foi movido para `.github/workflows/deploy-pages.yml`, na raiz, apontando para a pasta `www`.
+
 ## Observações
 
 - A V2.3 mantém o PWA dentro de `www/`.
