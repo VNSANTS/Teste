@@ -15,6 +15,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.0",
-    "@capacitor/android": "^7.4.0"
+    "@capacitor/android": "^7.4.0",
+    "typescript": "^5.6.0"
   }
 }
