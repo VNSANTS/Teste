@@ -6,10 +6,11 @@ import android.content.pm.PackageManager
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.Gravity
-import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import rikka.shizuku.Shizuku
@@ -20,6 +21,9 @@ class MainActivity : Activity() {
     private lateinit var status: TextView
     private lateinit var actionButton: Button
     private lateinit var reloadButton: Button
+    private lateinit var keepSpinner: Spinner
+    private var userApps: List<ApplicationInfo> = emptyList()
+    private var keepPackages: List<String> = emptyList()
 
     private val permissionListener = Shizuku.OnRequestPermissionResultListener { _, grantResult ->
         runOnUiThread {
@@ -37,6 +41,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         Shizuku.addRequestPermissionResultListener(permissionListener)
         buildUi()
+        loadAppsToKeep()
         updatePermissionState()
     }
 
@@ -63,6 +68,17 @@ class MainActivity : Activity() {
         }
         root.addView(subtitle)
 
+        val keepLabel = TextView(this).apply {
+            text = "Aplicativo que deve continuar aberto:"
+            textSize = 15f
+            setTextColor(0xFFE2E8F0.toInt())
+            setPadding(0, 0, 0, dp(6))
+        }
+        root.addView(keepLabel)
+
+        keepSpinner = Spinner(this)
+        root.addView(keepSpinner, LinearLayout.LayoutParams(-1, dp(52)))
+
         status = TextView(this).apply {
             text = "Verificando Shizuku…"
             textSize = 15f
@@ -72,25 +88,30 @@ class MainActivity : Activity() {
         root.addView(status)
 
         actionButton = Button(this).apply {
-            text = "FECHAR APPS EM SEGUNDO PLANO"
+            text = "FECHAR OS OUTROS APPS"
             isEnabled = false
             setOnClickListener { optimize() }
         }
         root.addView(actionButton, LinearLayout.LayoutParams(-1, dp(58)))
 
         reloadButton = Button(this).apply {
-            text = "ATUALIZAR PERMISSÃO"
-            setOnClickListener { updatePermissionState() }
+            text = "ATUALIZAR LISTA / PERMISSÃO"
+            setOnClickListener {
+                loadAppsToKeep()
+                updatePermissionState()
+            }
         }
         root.addView(reloadButton, LinearLayout.LayoutParams(-1, dp(52)))
 
         val note = TextView(this).apply {
             text = "\nO que esta beta faz:\n" +
-                "• Força a parada de apps instalados pelo usuário, exceto o TurboLite.\n" +
+                "• Mantém o TurboLite e o app escolhido na lista.\n" +
+                "• Força a parada de outros apps instalados pelo usuário.\n" +
                 "• Não força a parada de apps de sistema.\n" +
                 "• Não apaga cache, dados ou logins.\n\n" +
-                "Atenção: apps fechados podem perder downloads, reprodução, navegação ou notificações temporariamente. " +
-                "O Android pode reiniciá-los depois. Esta ação não ativa automaticamente o modo gamer da Infinix."
+                "Antes de tocar no botão, selecione o jogo/app que quer manter. Depois, volte a abrir esse app. " +
+                "Apps fechados podem perder downloads, reprodução ou notificações temporariamente; o Android pode reiniciá-los. " +
+                "Esta beta não ativa automaticamente o modo gamer da Infinix."
             textSize = 14f
             setTextColor(0xFFB8C4D9.toInt())
             setPadding(0, dp(16), 0, dp(10))
@@ -99,6 +120,33 @@ class MainActivity : Activity() {
 
         val scroll = ScrollView(this).apply { addView(root) }
         setContentView(scroll)
+    }
+
+    private fun loadAppsToKeep() {
+        try {
+            userApps = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
+                .filter { app ->
+                    (app.flags and ApplicationInfo.FLAG_SYSTEM) == 0 &&
+                        packageManager.getLaunchIntentForPackage(app.packageName) != null
+                }
+                .sortedBy { packageManager.getApplicationLabel(it).toString().lowercase() }
+
+            val labels = mutableListOf("TurboLite (manter aberto)")
+            val packages = mutableListOf(packageName)
+            userApps.filter { it.packageName != packageName }.forEach { app ->
+                labels.add("${packageManager.getApplicationLabel(app)} • ${app.packageName}")
+                packages.add(app.packageName)
+            }
+            keepPackages = packages
+
+            val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels).apply {
+                setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            }
+            keepSpinner.adapter = adapter
+            status.text = "Lista carregada: ${labels.size - 1} apps disponíveis para manter."
+        } catch (e: Exception) {
+            status.text = "Não consegui listar os apps: ${e.message ?: "erro desconhecido"}"
+        }
     }
 
     private fun updatePermissionState() {
@@ -131,18 +179,19 @@ class MainActivity : Activity() {
             return
         }
 
+        val keepPackage = keepPackages.getOrNull(keepSpinner.selectedItemPosition) ?: packageName
         actionButton.isEnabled = false
-        status.text = "Preparando lista de apps…"
+        status.text = "Forçando parada dos outros apps…"
 
         executor.execute {
             val candidates = try {
                 packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
                     .filter { app ->
                         app.packageName != packageName &&
+                            app.packageName != keepPackage &&
                             (app.flags and ApplicationInfo.FLAG_SYSTEM) == 0 &&
                             packageManager.getLaunchIntentForPackage(app.packageName) != null
                     }
-                    .sortedBy { packageManager.getApplicationLabel(it).toString().lowercase() }
             } catch (e: Exception) {
                 runOnUiThread {
                     status.text = "Não consegui listar apps: ${e.message}"
@@ -169,7 +218,8 @@ class MainActivity : Activity() {
 
             runOnUiThread {
                 status.text = "Concluído. Apps solicitados para parada: $stopped. Falhas: ${failures.size}.\n" +
-                    "O Android pode reiniciar alguns serviços/apps automaticamente."
+                    "Mantidos: TurboLite + ${if (keepPackage == packageName) "nenhum app adicional" else keepPackage}.\n" +
+                    "O Android pode reiniciar alguns apps automaticamente."
                 actionButton.isEnabled = true
                 Toast.makeText(this, "TurboLite: $stopped apps processados", Toast.LENGTH_LONG).show()
             }
