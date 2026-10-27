@@ -23,3 +23,6 @@ Aplicativo Android experimental para solicitar a parada forçada de aplicativos 
 ## Build
 
 GitHub Actions compila `app-debug.apk` em cada push que altere a pasta `TurboLite/` ou o workflow de build. O APK aparece como artifact do workflow.
+
+
+Build trigger check: workflow automatizado configurado para esta pasta.
